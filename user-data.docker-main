@@ -1,0 +1,60 @@
+#cloud-config
+
+coreos:
+  etcd:
+      #discovery: <DISCOVERY>
+      addr: $public_ipv4:4001
+      peer-addr: $public_ipv4:7001
+  units:
+    - name: etcd.service
+      command: start
+    - name: fleet.service
+      command: start
+      runtime: no
+      content: |
+        [Unit]
+        Description=fleet
+
+        [Service]
+        Environment=FLEET_PUBLIC_IP=$public_ipv4
+        ExecStart=/usr/bin/fleet
+    - name: docker.service
+      command: start
+      runtime: no
+      content: |
+        [Unit]
+        Description=docker
+        
+        [Service]
+        PermissionsStartOnly=true
+        ExecStartPre=/usr/bin/systemctl kill docker.service
+        ExecStart=/usr/bin/docker -d -H tcp://localhost:4243 -H unix:///var/run/docker.sock
+ 
+        [Install]
+        WantedBy=local.target
+
+    - name: docker-registry.service
+      command: start
+      runtime: no
+      content: |
+        [Unit]
+        Description=docker registry
+        After=docker.service
+        Requires=docker.service
+        After=etcd.service
+
+        [Service]
+        Restart=always
+        ExecStart=/bin/bash -c '/usr/bin/docker start -a docker-registry || \
+                                /usr/bin/docker run --name docker-registry  \
+                                                    -p 5000:5000            \
+                                                    -v /home/core/share/docker-registry:/usr/share/docker-registry  \
+                                                    -e DOCKER_REGISTRY_CONFIG=/usr/share/docker-registry/config.yml \
+                                                    samalba/docker-registry'
+        ExecStartPost=/usr/bin/etcdctl set /docker/registry %H
+
+        ExecStop=/usr/bin/docker stop -t 2 docker-registry
+        ExecStopPost=/usr/bin/etcdctl rm /docker/registry
+
+        [Install]
+        WantedBy=local.target

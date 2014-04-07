@@ -18,21 +18,20 @@ coreos:
         [Service]
         Environment=FLEET_PUBLIC_IP=$public_ipv4
         ExecStart=/usr/bin/fleet
-    - name: docker.service
+    - name: docker-tcp.socket
       command: start
       runtime: no
       content: |
         [Unit]
-        Description=docker
+        Description=Docker Socket for the API
         
-        [Service]
-        PermissionsStartOnly=true
-        ExecStartPre=/usr/bin/systemctl kill docker.service
-        ExecStart=/usr/bin/docker -d -H tcp://localhost:4243 -H unix:///var/run/docker.sock
- 
+        [Socket]
+        ListenStream=4243
+        Service=docker.service
+        BindIPv6Only=both
+        
         [Install]
-        WantedBy=local.target
-
+        WantedBy=sockets.target
     - name: docker-registry.service
       command: start
       runtime: no

@@ -10,7 +10,6 @@ CLOUD_CONFIG_PATH = "./user-data.#{INSTANCE}"
 Vagrant.configure("2") do |config|
   # Fix docker not being able to resolve private registry in VirtualBox
   config.vm.provider :virtualbox do |vb, override|
-    puts "Provider is virtualbox"
     vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
     vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
   end
@@ -39,7 +38,6 @@ Vagrant.configure("2") do |config|
     config.vm.synced_folder "./#{INSTANCE}", "/home/core/share", id: "core", :nfs => true,  :mount_options   => ['nolock,vers=3,udp']
   
     if File.exist?(CLOUD_CONFIG_PATH)
-      puts "Using #{CLOUD_CONFIG_PATH}"
       config.vm.provision :file, :source => "#{CLOUD_CONFIG_PATH}", :destination => "/tmp/user-data"
       config.vm.provision :shell, :inline => "mkdir -p /var/lib/coreos-vagrant && mv /tmp/user-data /var/lib/coreos-vagrant", :privileged => true
     end
